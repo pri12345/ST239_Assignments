@@ -1,0 +1,236 @@
+--- Page 1 ---
+1 Email:(francesca.basini.1@warwick.ac.uk)
+ST239: Assignment 1
+Instructions
+This assignment is worth 20% of the total module mark.
+The assignment is composed of4 Questionsworth at total of60 points, respec-
+tively, and a few optional questions.
+Submission ComponentsYour submission should include the following docu-
+ments:
+•Python Notebooks (with.ipynbextension) containing your answers for the
+exercises; including code and written text. You can choose to use one single
+notebook for the whole assignment or split it into multiple ones.
+The code should be fully reproducible (i.e. I should be able to run it in my local
+machine with no errors) and well-commented.
+Style suggestions:
+–Comments and written answers can be included directly on the Notebook
+using markdown cells. Alternatively, you can attach an accompanying text
+document (pdf, word) and refer to the question you are answering.
+–For each chunk of code or procedure used, you should add a small comment
+in code or a description on its functionality and how it is being used in a
+text cell.
+–DO NOT submit the datasets. I will place your code in a folder with them,
+soyoushouldaccessthemwithasimplepathcommand,e.g.file-name.csv
+!!! The integrity of the submission is the students’ responsibility : make
+sure that your submission contains all the right files and that it is not
+corrupted !!
+If you notice any issues with your submission: contact me asap.
+The use of Generative AI Tools for this assignment is forbidden.
+If I suspect that you have used any such tools for the assessed coursework you risk
+being referred to an academic conduct panel.
+--- Page 2 ---
+2 Email:(francesca.basini.1@warwick.ac.uk)
+Q1. Warm up: Simple ‘Linear’ Regression
+In recent labs, we have worked with the‘mpg’dataset for the purpose of developing
+a multiple linear regression model. However, at the exploratory data analysis stage
+a preliminary finding was that the paiwise relationship between the target and a
+number of regressors was not quite linear.
+•Give some context on how to perform simple linear regression on a trans-
+formation of the explanatory variable, suggest a plausible transformation
+for the regressors in the example and write down the new model mathe-
+matically.
+•Fit a simple regression using the transformed regressor (one for each non-
+linear pair).
+•Interprettheoutputoftheregressionanalysis; explainhowtheparameters
+change meaning in light of the new model and discuss what simple ‘linear’
+model best explains fuel efficiency (mpg).
+•Compare your results with the simple linear regression model developed
+in previous labs using suitable metrics and criteria.
+•For the ‘best’ transformed linear model, derive diagnostics and discuss
+them in comparison to the original linear case.
+[12 marks.]
+--- Page 3 ---
+3 Email:(francesca.basini.1@warwick.ac.uk)
+Q2. Regression and MLEfrom scratch
+1. Consider the Poisson model introduced in class and the MLE method.
+You are now provided with a record of weekly received emails over the course
+of one year in fileweekly_emails.csv.
+•Plotthelikelihoodandlog-likelihoodcurveswithrespecttheunkown
+parameterλto the and explain your reasoning with a small text
+comment.
+•Highlight ˆλMLEthe maximum likelihood estimate for the observed
+data under the Maximum Likleihood Criterion.
+The libraryoptimizein Python allows to optimize minimise or maximise a
+functioncreatedbytheuserusingsomebuilt-innumericalmethodsasillustrated
+below
+from scipy.optimize import minimize
+def fun(x, beta)
+return x*beta+3
+result = minimize(fun, x0, method="Nelder-Mead")
+print(result)
+In the code above, the functionfunrepresents the objective function to be op-
+timized. It takes a parameter valuexand returns the quantityx·β+ 3, which
+is treated as the function to be minimized.
+The optimization procedure starts from an initial guessx0and applies the
+Nelder–Meadalgorithm,agradient-freeoptimizationmethod. Ateachiteration,
+the algorithm proposes a new value of the parameterxwith the aim of reducing
+the value of the objective function. The iterations continue until convergence
+(the final value is found) is met.
+The output of the optimization is stored in the objectresult, which contains
+the final parameter estimate, the value of the objective function at the solution,
+and diagnostic information about the convergence.
+You should read more about this function in the aszsociated documentation.
+--- Page 4 ---
+4 Email:(francesca.basini.1@warwick.ac.uk)
+•Implement a code to using theminimisefunction to find the MLE
+of the example above adapting the folllowing code:
+result = minimize(
+fun,
+x0,
+method="Nelder-Mead",
+callback=callback
+)
+and consider ways to illustrate the trajectory path from the initial
+guess to the final value. Think of comparing this visually with the
+result of the previous part.
+2. In the lectures, we highlighted the limitations of the linear model when the
+relationship between the explanatory variableXand the responseYis in fact
+non-linear. We consider a transformation thereof in the Q1, another alternative
+when sensibleis to consider apolynomialregression.
+ThefileQ2_curve.csvisaN×2-dimensionalnumpyarraywithtwocolumnsfor
+XandYwith a complex pattern that you are asked to model with a non-linear
+statistical model.
+Your task is to find the relationship,
+Y=f(X) +ε.
+•Use the functioncurve_fitfrom thescipy.optimizelibrary to
+automatically optimize the parameters of a custom model you de-
+fine, based on the non-linear least squares criterion. This automated
+optimizerrequiresthefollowingarguments: yourcustommodelfunc-
+tion, the explanatory data, the target data, and an initial guess for
+the parameters. For more details, refer to thehelpfunction.
+•Experiment with potential models that include higher-order terms
+ofX.
+•Compare this with the output of a standardsmprocedure and com-
+ment.
+[8 marks.]
+--- Page 5 ---
+5 Email:(francesca.basini.1@warwick.ac.uk)
+Q3. Analysis of the ‘house efficiency’ dataset
+Your goal is to develop and interpret a multiple linear regression model to explain
+monthly household electricity consumption(kwh_month)using building characteris-
+tics, energy-efficiency indicators, and a few additional variables.
+Variable Type Description
+kwh_monthContinuous Monthly household electricity consumption (kWh)
+floor_areaContinuous Total floor area of the dwelling (m2)
+insulationContinuous Insulation quality score (0 = very poor, 10 = excellent)
+avg_tempContinuous Average outdoor temperature during the month (◦C)
+heat_pumpBinary Indicator variable: 1 if a heat pump is installed, 0 otherwise
+appliancesInteger Number of major electrical appliances in the household
+building_ageContinuous Age of the building (years)
+garden_sizeContinuous Size of the private garden area (m2)
+wall_colour_lightBinary Indicator variable: 1 if the external wall colour is light, 0 otherwise
+distance_city_kmContinuous Distance of the dwelling from the city centre (km)
+Table 1: Description of variables in the synthetic house energy consumption dataset
+1.EDA -Perform preliminary Exploratory Data Analysis:
+•Produce appropriate summary statistics and plots (histograms, scat-
+ter plots, boxplots).
+•Explore relationships betweenkwh_monthand each predictor, and
+discuss any evident trends or anomalies.
+2.Fit -Estimate a multiple linear regression model with the training data.
+Select the best model under the principles illustrated in the lecture:
+•Consider a few model selection strategies (backward elimination, for-
+ward selection) and illustrate the criteria you used to reach the final
+model.
+•Report the chosen final model, provide coefficient interpretations in
+the context of household energy use, and state which variables you
+decided to drop and why.
+--- Page 6 ---
+6 Email:(francesca.basini.1@warwick.ac.uk)
+3Diagnostics -Evaluate the quality of the final model using residual
+diagnostics:
+•Residuals vs fitted values (linearity and heteroskedasticity).
+•Q–Q plot (normality of errors).
+•Leverage and influence (Cook’s distance).
+•Discuss whether the assumptions of linear regression appear reason-
+able and what remedies could be considered.
+•The dataset contains a few influential observations. Explain how you
+would identify them, how they can affect coefficient estimates and
+inference, and how you would report results bothwithandwithout
+these observations.
+4Collinearity -Compute and comment on the VIF for the fitted model.
+Discuss whether multicollinearity is problematic and how it affects infer-
+ence.
+5Prediction and evaluation -
+•Use the fitted model to predict the monthly electricity consumption
+kwh_monthfor the following household that was not included in the
+original dataset:
+–Floor area: 160 m2
+–Insulation score: 6
+–Average outdoor temperature: 8◦C
+–Heat pump installed: Yes
+–Number of appliances: 12
+–Building age: 35 years
+–Garden size: 180 m2
+–External wall colour is light
+–Distance from city centre: 7 km
+Briefly discuss which characteristics of this dwelling contribute the
+most to increasing or decreasing the predicted electricity consump-
+tion, based on the estimated coefficients.
+[25 marks.]
+--- Page 7 ---
+7 Email:(francesca.basini.1@warwick.ac.uk)
+Q4. Logistic regression to detect phishing emails
+The dataset ‘spam_phishing.csv’ contains the following information:
+Variable name Description Type Range / Values
+attachment_size_kbSize of email attachments in kilobytes.
+Equals 0 if the email has no attachment.Numeric≥0(typically 0–2000 KB)
+special_char_ratio_pctPercentage of special characters relative to the total
+number of characters in the email body, multiplied by 100.Numeric 0–30
+has_fishy_wordsIndicator for whether the email contains suspicious
+words such as “urgent”, “win”, “offer”, etc.Binary 0 = No, 1 = Yes
+is_spamTarget variable indicating whether the email is phishing/spam. Binary 0 = Non-spam, 1 = Spam
+Table 2: Description of variables used in the phishing email classification dataset.
+Your goal is to develop and interpret a logistic regression model to classify email
+asphishing/spamornon-spamusing a small set of features.
+•Restrict your attention to the first 400 observations of the dataset for
+inference and leave the remaining 50 observations for future validation
+(until further indications).
+•EDA -Develop some preliminary Exploratory Data Analysis: use appro-
+priate plots to explore the variables and their relationships to one another.
+Addsomepreliminaryinsightsoranddiscussanycommentsyoumayhave.
+•Fit -Estimate a logistic regression model with the training data. Select
+the best model under the principles illustrated in the lecture. Write down
+the final model, interpret the outputs in Python with focus on the param-
+eters and their meaning in terms of Odds Ratio for the context of spam
+detection.
+•Prediction -
+–Use the fitted model to predict spam probabilities for the 50 test
+observations.
+–Use this quantity to classify the emails using a 0.5 probability thresh-
+old and a 0.7 one.
+–Compare the two threshold in terms of predictive performance; you
+may use the metric that you find most appropriate upon explaining
+your choice intuitively.
+--- Page 8 ---
+8 Email:(francesca.basini.1@warwick.ac.uk)
+•Question 1:Under the final model, consider two emails:
+- Email A: very large attachment, very low special-character ratio (be-
+tween 0-1), contains one fishy word.
+- EmailB:evenlargerattachment(by120KB),afewspecialcharacters
+(a ratio of 4), no fishy words.
+According to the logistic regression model, who has a higher probability
+of having received a phishing email?
+•Question 2:Suppose that the dataset, in addition to the variables al-
+ready used, a further categorical variable called‘sender_type’is intro-
+duced. This has three levels: known contact (i.e friend, colleague, etc),
+unknown (no prior interaction), trusted entity (claims to be a bank, de-
+livery service, platform etc).
+Explain how you would include this in the model, what would be the as-
+sociated parameter, their interpretation in terms of Odds Ratio and what
+may be your pre-judgement on the effect of this variable in the context of
+spam detection.
+[15 marks.]
+Bonus Question
+Can you explain to a non-statistician the following vignette?
+You will still receive feedback on your explanation, which can be useful to improve
+communication/explanation skills.[0 marks.]

@@ -17,6 +17,10 @@ trigger: always_on
 
 1.4. The user is using a .venv to for this project. you can see more details in the folder @.venv , and use this virtual environment to install all imports. Prompt the user if there is any complication, but do not add imports to the global path.
 
+1.5. Before starting a new question, always make a git commit. ("git add .", "git commit -m 'Pre question X.x commit' " , "git push origin main"). 
+
+1.6. Never make a commit after having modified any file. If you already modified something and forgot to commit, then just notify the user about the missed commit.
+
  </critical>
 
 

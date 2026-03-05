@@ -69,3 +69,270 @@ The best RF and XGB models (selected by log-loss) were evaluated over **30 repea
 In this setting, **Recall** (sensitivity) deserves higher priority than overall Accuracy. A false negative — predicting no default when the customer actually defaults — carries a much greater financial cost for the bank (unrecovered loans) than a false positive (declining a creditworthy customer). A model with higher recall catches more true defaulters even at the expense of some false alarms.
 
 *[To be completed: state which model achieves higher average Recall and which shows lower variability across seeds, and give a final recommendation.]*
+
+---
+
+## Q3. PCA in Practice
+
+### Introduction
+
+In this question we explore the structure of a dataset recording occupational information for 1,200 workers using **Principal Component Analysis (PCA)**. The dataset contains nine continuous predictors covering physical work demands (standing, lifting, manual intensity, repetitive motion), sedentary activities (seated hours, computer use), and socio-economic characteristics (age, income, meeting hours), alongside a binary target `chronic_pain`. The PCA section focuses exclusively on the explanatory variables to uncover the main axes of variation before incorporating the target in the logistic regression that follows.
+
+---
+
+### Data Inspection
+
+The dataset contains 1,200 observations and 9 features. The summary statistics reveal substantial **scale heterogeneity**:
+
+| Variable | Mean | Std |
+|---|---|---|
+| age | 40.5 | 10.6 |
+| annual_income_gbp | 28,953 | 7,998 |
+| standing_hours_per_day | 4.45 | 1.89 |
+| lifting_hours_per_day | 1.72 | 1.32 |
+| manual_intensity_score | 5.24 | 2.35 |
+| repetitive_motion_score | 4.92 | 2.17 |
+| seated_hours_per_day | 5.37 | 1.96 |
+| computer_hours_per_day | 4.13 | 1.82 |
+| meetings_hours_per_week | 6.01 | 4.23 |
+
+`annual_income_gbp` has a standard deviation of ~8,000 — roughly 4,000× larger than the hourly variables — and `meetings_hours_per_week` (std ≈ 4.2) is more variable than the other hour-based measures. Chronic pain affects **27.9%** of workers (approximately 1-in-4).
+
+The correlation matrix highlights two broad clusters, confirmed by the PCA loadings below:
+
+- **Physical/manual cluster**: `standing_hours_per_day`, `lifting_hours_per_day`, `manual_intensity_score`, and `repetitive_motion_score` are positively correlated — workers who stand more also tend to lift more and report higher manual intensity.
+- **Desk-work cluster**: `seated_hours_per_day`, `computer_hours_per_day`, and `meetings_hours_per_week` are positively associated, and these groups are largely orthogonal to the physical cluster (active and sedentary work are mutually exclusive in a given day).
+
+`age` is relatively independent of both clusters; `annual_income_gbp` shows a mild association with the desk-work group (higher-income workers tend to be office-based).
+
+---
+
+### PCA: Preprocessing and Justification
+
+Before running PCA, the features were **standardised** (zero mean, unit variance) using `StandardScaler`. Two reasons justify this choice:
+
+1. **Scale differences**: `annual_income_gbp` has a standard deviation several orders of magnitude larger than the hourly variables. Without standardisation, PCA would be dominated by income simply because of its larger numeric range, not because it is genuinely more variable in a meaningful sense.
+2. **PCA maximises variance**: Since PCA finds the directions of maximum variance, variables on larger scales would artificially dominate the first principal component. Standardisation puts all variables on an equal footing so that PCA reflects the underlying covariance *structure*, not measurement units.
+
+Mean-centering is performed automatically by `StandardScaler` and is also a formal requirement for PCA (the covariance matrix is defined around the mean).
+
+---
+
+### Principal Components: Eigenvalues and Loadings
+
+*[Insert eigenvalue table here after running.]*
+
+#### Naming the Principal Components
+
+The table below shows the correlation loadings (i.e. the correlation between each standardised variable and each PC):
+
+| Variable | PC1 | PC2 | PC3 |
+|---|---|---|---|
+| age | 0.031 | 0.003 | **0.915** |
+| annual_income_gbp | 0.073 | **0.601** | 0.313 |
+| standing_hours_per_day | **0.697** | −0.020 | −0.019 |
+| lifting_hours_per_day | **0.703** | −0.100 | −0.054 |
+| manual_intensity_score | **0.713** | −0.063 | 0.049 |
+| repetitive_motion_score | **0.622** | −0.054 | −0.039 |
+| seated_hours_per_day | 0.065 | **0.583** | −0.261 |
+| computer_hours_per_day | 0.024 | **0.704** | −0.149 |
+| meetings_hours_per_week | 0.103 | **0.622** | 0.100 |
+
+- **PC1 — "Physical Labour Intensity"**: dominated by `manual_intensity_score` (0.71), `lifting_hours_per_day` (0.70), `standing_hours_per_day` (0.70), and `repetitive_motion_score` (0.62). All four physical-work variables load highly and positively; desk-work variables have near-zero loadings. This component distinguishes workers doing demanding physical jobs from those who do not.
+
+- **PC2 — "Office / Desk Work"**: driven by `computer_hours_per_day` (0.70), `meetings_hours_per_week` (0.62), `annual_income_gbp` (0.60), and `seated_hours_per_day` (0.58). PC2 captures the intensity of desk-based, collaborative, and well-paid work. It is orthogonal to PC1, reflecting that physical and office work are largely independent dimensions across workers.
+
+- **PC3 — "Seniority / Age"**: almost entirely explained by `age` (0.92), with a secondary contribution from `annual_income_gbp` (0.31). This component captures the career-stage and earnings dimension, largely independent of job type.
+
+The **correlation circle plots** confirm these groupings visually: arrows for the four physical variables cluster together in the PC1 direction, the desk-work arrows cluster in the PC2 direction, and `age` points strongly along PC3. Variables pointing roughly at right angles are uncorrelated with respect to those two PCs.
+
+---
+
+### 2D and 3D Projections
+
+The 2D scatter plot of PC1 vs PC2 maps workers into a "job-type space": workers in the upper-right are physically active (high PC1) and also office-intensive (high PC2), while workers in the lower-left have low physical and low desk demands. The two chronic pain groups overlap substantially in this 2D projection, indicating that job type alone (without age) does not cleanly separate pain cases from non-pain cases. Some concentration of chronic pain cases may be visible at the extremes of PC1 (heavy manual labour) or PC2 (intensive desk work), both associated with musculoskeletal stress through different mechanisms.
+
+The 3D projection adds PC3 (the age/seniority axis). Older workers may show a slight tendency toward chronic pain at any level of PC1 or PC2, providing modest additional separation that the first two PCs could not capture.
+
+---
+
+### Dimensionality Reduction Criteria
+
+Three standard criteria were applied:
+
+1. **Kaiser criterion (eigenvalue > 1)**: retain only components whose eigenvalue exceeds 1, meaning they explain more variance than a single standardised variable would. This is a commonly used heuristic.
+
+2. **Scree plot (elbow method)**: plot eigenvalues in decreasing order and look for an "elbow" — the point at which successive eigenvalues drop steeply before levelling off. Components before the elbow are retained.
+
+3. **Cumulative variance threshold**: retain the minimum number of components that together explain at least 80% (or 90%) of total variance.
+
+The actual eigenvalues and cumulative variance are:
+
+| PC | Eigenvalue | Variance | Cumulative |
+|---|---|---|---|
+| 1 | 1.898 | 21.1% | 21.1% |
+| 2 | 1.601 | 17.8% | 38.9% |
+| 3 | 1.042 | 11.6% | 50.4% |
+| 4 | 0.858 | 9.5% | 59.9% |
+| 5 | 0.807 | 9.0% | 68.9% |
+| 6 | 0.755 | 8.4% | 77.3% |
+| 7 | 0.715 | 7.9% | 85.2% |
+| 8 | 0.682 | 7.6% | 92.8% |
+| 9 | 0.648 | 7.2% | 100.0% |
+
+The three criteria give **divergent recommendations**:
+
+- **Kaiser criterion**: retain **3 components** (PC1 = 1.90, PC2 = 1.60, PC3 = 1.04, all > 1; PC4 = 0.86 < 1).
+- **Scree plot**: the eigenvalues drop from 1.90 → 1.60 → 1.04 → 0.86 with no sharp elbow — the spectrum is relatively flat, consistent with a dataset where variance is spread across several dimensions. The clearest change of slope occurs at PC4, supporting retention of **3 components**.
+- **80% variance threshold**: requires **7 components** (85.2%); **8 components** for 90%.
+
+The flat eigenvalue spectrum is a diagnostic signal: the nine variables share their explanatory power fairly evenly without a dominant low-dimensional structure. This makes dimensionality reduction less effective here than in datasets with a few strong latent factors.
+
+**Decision**: We retain **3 principal components**, balancing interpretability and Kaiser/scree agreement, accepting that they capture only ~50% of total variance. PC1 (physical labour), PC2 (desk work), and PC3 (age/seniority) each correspond to a clear and meaningful occupational dimension, making this choice justifiable for the subsequent logistic regression. The 80% threshold's requirement of 7 components would largely eliminate the dimensionality reduction benefit and produce components that are difficult to interpret.
+
+---
+
+## Q3. Logistic Regression
+
+### Data Inspection: `chronic_pain` and its Correlations
+
+The target `chronic_pain` is binary, with a prevalence of **27.9%** (335 out of 1,200 workers). The class imbalance is moderate and does not require resampling for logistic regression.
+
+**Correlation with original features** (Pearson, sorted by absolute value):
+
+| Variable | Correlation with `chronic_pain` |
+|---|---|
+| lifting_hours_per_day | **0.216** |
+| repetitive_motion_score | **0.185** |
+| standing_hours_per_day | **0.167** |
+| manual_intensity_score | 0.154 |
+| age | 0.093 |
+| meetings_hours_per_week | 0.093 |
+| seated_hours_per_day | 0.080 |
+| annual_income_gbp | 0.070 |
+| computer_hours_per_day | 0.056 |
+
+Physical-work variables dominate — workers who lift more and perform repetitive motions are most strongly associated with chronic pain. `annual_income_gbp` and `computer_hours_per_day` show the weakest linear relationship.
+
+**Correlation with retained PCs**:
+
+| PC | Correlation with `chronic_pain` |
+|---|---|
+| PC1 (Physical Labour) | **0.273** |
+| PC2 (Desk Work) | 0.089 |
+| PC3 (Age/Seniority) | 0.070 |
+
+PC1 is clearly the most predictive of the three — consistent with physical variables being the strongest individual correlates. PC2 and PC3 show weaker but non-trivial associations, suggesting desk work intensity and older age also contribute to chronic pain risk.
+
+---
+
+### Logistic Regression with Original Variables
+
+A full model was first fitted using all 9 features. Three predictors were **not statistically significant** at the 5% level: `annual_income_gbp` (p = 0.240), `manual_intensity_score` (p = 0.127), and `computer_hours_per_day` (p = 0.321). These are dropped, yielding a **selected model** with 6 predictors.
+
+**Selected model results** (all 6 predictors significant, p < 0.05):
+
+| Predictor | Coefficient | OR | 95% CI | p-value |
+|---|---|---|---|---|
+| `age` | 0.0213 | **1.022** | [1.009, 1.034] | 0.0009 |
+| `standing_hours_per_day` | 0.1062 | **1.112** | [1.031, 1.199] | 0.0056 |
+| `lifting_hours_per_day` | 0.2780 | **1.320** | [1.188, 1.468] | <0.001 |
+| `repetitive_motion_score` | 0.1340 | **1.143** | [1.071, 1.220] | <0.001 |
+| `seated_hours_per_day` | 0.0849 | **1.089** | [1.016, 1.166] | 0.0158 |
+| `meetings_hours_per_week` | 0.0439 | **1.045** | [1.012, 1.079] | 0.0062 |
+
+*McFadden Pseudo-R² = 0.079; AIC = 1322.70; 7 parameters (6 predictors + intercept)*
+
+**Which predictors appear most strongly associated with chronic pain?**
+
+`lifting_hours_per_day` (OR = 1.32) is the strongest predictor: each additional hour of daily lifting is associated with a 32% increase in the odds of chronic pain, holding other variables constant. `repetitive_motion_score` (OR = 1.14) and `standing_hours_per_day` (OR = 1.11) follow. These three are all physical-load variables, consistent with the well-established link between manual labour and musculoskeletal disorders. `seated_hours_per_day` (OR = 1.09) and `meetings_hours_per_week` (OR = 1.04) are statistically significant but with smaller effects, reflecting the modest risk from prolonged sedentary postures.
+
+**Are some variables difficult to interpret jointly?**
+
+Yes. `lifting_hours_per_day`, `standing_hours_per_day`, `manual_intensity_score`, and `repetitive_motion_score` are all moderately correlated (they measure different facets of physical workload). In the full model, `manual_intensity_score` loses significance (p = 0.127) even though its univariate correlation with chronic pain is 0.15 — a classic sign of **multicollinearity**: once `lifting` and `repetitive_motion` are in the model, `manual_intensity` adds little new information because it shares its explanatory variance with them. Similarly, `computer_hours_per_day` becomes redundant once `seated_hours_per_day` and `meetings_hours_per_week` are controlled for. The individual coefficients of correlated predictors can shift and become harder to interpret because their effects cannot be cleanly separated — a 1-unit increase in `lifting` while holding `standing` constant may not correspond to any realistic worker.
+
+---
+
+### Logistic Regression with PCA Variables
+
+Using the 3 retained principal components as predictors, the **PCA logistic regression** results are:
+
+| Predictor | Coefficient | OR | 95% CI | p-value |
+|---|---|---|---|---|
+| PC1 (Physical Labour) | 0.4749 | **1.608** | [1.452, 1.780] | <0.001 |
+| PC2 (Desk Work) | 0.1718 | **1.187** | [1.070, 1.318] | 0.0012 |
+| PC3 (Age/Seniority) | 0.1596 | **1.173** | [1.031, 1.334] | 0.0153 |
+
+*McFadden Pseudo-R² = 0.076; AIC = 1321.32; 4 parameters (3 PCs + intercept)*
+
+All three PCs are significant predictors of chronic pain, confirming that each occupational dimension independently contributes to risk.
+
+**Interpreting the coefficients and odds ratios:**
+
+- **PC1 (Physical Labour, OR = 1.61)**: A one-standard-deviation increase in PC1 — moving from an average worker toward a more physically demanding job profile (more standing, lifting, manual intensity, and repetitive motion) — is associated with a **61% increase** in the odds of chronic pain. This is the dominant risk factor. The large OR reflects the combined effect of four correlated physical-work variables compressed into a single dimension.
+
+- **PC2 (Desk Work, OR = 1.19)**: Workers who score higher on the desk-work dimension (more computer time, more meetings, higher income) have **19% higher odds** of chronic pain per standard-deviation increase. This may reflect musculoskeletal strain from prolonged static postures, screen use, and the sedentary nature of office work.
+
+- **PC3 (Age/Seniority, OR = 1.17)**: Older, more senior workers have **17% higher odds** of chronic pain per SD increase in PC3. Age is an independent risk factor for musculoskeletal conditions, regardless of job type.
+
+---
+
+### Model Comparison
+
+| Model | Parameters | Log-Likelihood | AIC | BIC | Pseudo R² |
+|---|---|---|---|---|---|
+| Full original (9 features) | 10 | −651.81 | 1323.62 | 1374.52 | 0.0827 |
+| Selected original (6 features) | 7 | −654.35 | 1322.70 | 1358.33 | 0.0792 |
+| PCA (3 components) | 4 | −656.66 | **1321.32** | 1341.68 | 0.0759 |
+
+**Number of parameters**: The PCA model uses only 4 parameters compared to 7 (selected) or 10 (full). This is a significant parsimony gain — the PCA model achieves a comparable fit with less than half the number of coefficients.
+
+**AIC (lower is better)**: The PCA model achieves the best AIC (1321.32) despite the lowest pseudo-R². This reflects the heavy AIC penalty for additional parameters: the full model's slightly better log-likelihood is outweighed by its 6 extra parameters.
+
+**Pseudo-R²**: The full original model has the highest McFadden R² (0.083), but all three models are in a narrow range (0.076–0.083). None of the models explain a large fraction of deviance — chronic pain has a complex aetiology and a single data-collection point with 9 variables is unlikely to capture it fully.
+
+**Interpretability**: The original selected model has a direct clinical interpretation — each coefficient describes the effect of a specific, measurable work characteristic. The PCA model is harder to translate into actionable occupational health advice: telling an employer "reduce PC1" is less useful than "reduce lifting hours." However, the PCA model is more concise and less affected by multicollinearity.
+
+**Overall recommendation**: For **predictive parsimony** the PCA model is preferable (best AIC, fewest parameters). For **causal inference and workplace intervention**, the selected original model is preferable (direct variable interpretation, though subject to collinearity caveats).
+
+---
+
+## Q3. Reflection Questions
+
+### Question 1: Why can PCs be predictive of chronic pain if PCA ignored the target variable?
+
+PCA is an **unsupervised** method that finds directions of maximum variance in the feature space, entirely ignoring `chronic_pain`. However, the principal components can still be predictive because the features themselves carry information about the outcome. PCA does not need to "know" the target to extract useful structure — if the original variables are predictive of chronic pain, and if that predictive information is correlated with the main directions of variation in the data, then the PCs will inherit that predictive power.
+
+In this dataset, the first PC captures physical labour intensity (standing, lifting, manual work, repetitive motions), which happens to be the strongest driver of musculoskeletal chronic pain. PCA identified this dimension simply because physical-work variables vary together across workers — it did not need the outcome to discover the cluster. The predictiveness of PC1 is a consequence of the fact that the signal driving chronic pain (physical workload) also happens to be the dominant axis of variation in the input data. If the signal were orthogonal to the main variance directions, PCA would fail to capture it and the PCs would be uninformative — but here the two coincide.
+
+---
+
+### Question 2: Is PCA guaranteed to improve predictive performance?
+
+**No**, PCA is not guaranteed to improve predictive performance. There are several reasons:
+
+1. **Discarded variance may contain signal**: PCA retains directions of maximum variance, but the outcome may be correlated with low-variance components that are discarded. In such a case, PCA would throw away the most predictive information while keeping noise-heavy directions.
+
+2. **Unsupervised nature**: Because PCA ignores the target variable, there is no guarantee that the retained components are the most predictive ones — only that they explain the most variance. Supervised alternatives (e.g., Partial Least Squares) explicitly maximise the covariance between the PCs and the target and can outperform PCA for prediction.
+
+3. **Information loss**: Retaining 3 components out of 9 discards ~50% of the total variance. Even if all 9 original variables were good predictors, the PCA model is working with a compressed and partially degraded representation.
+
+4. **Goodness of fit**: In this analysis, the pseudo-R² of the PCA model (0.076) is slightly lower than the selected original model (0.079), confirming that some predictive information was lost in the compression. The AIC advantage of the PCA model comes from parsimony, not from fitting the data better.
+
+PCA can *help* predictive performance in high-dimensional settings by reducing overfitting and multicollinearity, but it is not a universal improvement — its benefit depends on whether the variance structure aligns with the predictive signal.
+
+---
+
+### Question 3: Feature Selection vs Feature Extraction (PCA)
+
+**Feature selection** and **feature extraction** are both dimensionality reduction strategies, but they operate in fundamentally different ways:
+
+| | Feature Selection | Feature Extraction (PCA) |
+|---|---|---|
+| **Output** | A *subset* of the original variables | New synthetic variables (PCs) |
+| **Variables** | Original variables kept unchanged | Linear combinations of all original variables |
+| **Interpretability** | High — selected variables retain their original meaning | Lower — each PC blends multiple variables |
+| **Information** | Discards entire variables, retaining full information in the selected ones | Retains a fraction of total variance across all variables |
+| **Example** | Keeping only `lifting_hours` and `age` | Creating PC1 = "physical labour intensity" |
+
+The key conceptual difference is that **feature selection preserves the original variable space** (choosing which variables to keep and which to discard), while **feature extraction creates an entirely new, lower-dimensional representation** (transforming all variables into derived components). In the original selected logistic regression model, we can directly say "each extra hour of lifting increases the log-odds by 0.278." With PCA, the coefficient for PC1 describes the effect of an abstract composite — interpretable in terms of the original variables only indirectly, via the loadings.

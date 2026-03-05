@@ -1,0 +1,65 @@
+﻿--- Part 1: Gini Root ---
+Total samples: 25
+Class 0 (No Top Team): 13
+Class 1 (Top Team): 12
+Gini root: 0.4992
+
+--- Part 3: First Split (TrainingHours >= 8) ---
+Left Child (< 8): 13 samples, Gini: 0.1420
+Right Child (>= 8): 12 samples, Gini: 0.1528
+Weighted Gini: 0.1472
+Impurity reduction: 0.3520
+
+--- Part 2: DecisionTreeClassifier Output (max_depth=2) ---
+|--- TrainingHours <= 7.50
+|   |--- TrainingHours <= 6.50
+|   |   |--- class: 0
+|   |--- TrainingHours >  6.50
+|   |   |--- class: 0
+|--- TrainingHours >  7.50
+|   |--- FitnessPass <= 0.50
+|   |   |--- class: 0
+|   |--- FitnessPass >  0.50
+|   |   |--- class: 1
+
+--- Part 4: Second Level Splits Evaluation (Left Child: TrainingHours < 8) ---
+Split on FitnessPass: Weighted Gini = 0.1319
+Split on AttendanceGood: Weighted Gini = 0.1346
+Split on PriorClub: Weighted Gini = 0.1231
+Best split for Left Child is on PriorClub (Gini=0.1231)
+
+--- Part 4: Second Level Splits Evaluation (Right Child: TrainingHours >= 8) ---
+Split on FitnessPass: Weighted Gini = 0.0833
+Split on AttendanceGood: Weighted Gini = 0.1333
+Split on PriorClub: Weighted Gini = 0.1458
+Best split for Right Child is on FitnessPass (Gini=0.0833)
+
+--- Question 2: Student Predictions (Shallow Tree) ---
+Student A: Root -> Right Child (TrainingHours >= 8) -> Left Leaf (FitnessPass == 0) -> Prediction: Class 0
+Student B: Root -> Left Child (TrainingHours < 8) -> Left Leaf (PriorClub == 0) -> Prediction: Class 0
+
+
+--- Max Depth Tree Output ---
+|--- TrainingHours <= 7.50
+|   |--- TrainingHours <= 6.50
+|   |   |--- class: 0
+|   |--- TrainingHours >  6.50
+|   |   |--- PriorClub <= 0.50
+|   |   |   |--- class: 0
+|   |   |--- PriorClub >  0.50
+|   |   |   |--- class: 1
+|--- TrainingHours >  7.50
+|   |--- FitnessPass <= 0.50
+|   |   |--- AttendanceGood <= 0.50
+|   |   |   |--- class: 0
+|   |   |--- AttendanceGood >  0.50
+|   |   |   |--- class: 1
+|   |--- FitnessPass >  0.50
+|   |   |--- class: 1
+
+--- Max Depth Tree Properties ---
+Number of leaves: 6
+Depth of tree: 3
+Classes predicted based on output of decision tree predict:
+Student A Predict: 1
+Student B Predict: 0

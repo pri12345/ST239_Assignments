@@ -11,7 +11,7 @@ trigger: always_on
 
 1.1. The user needs you to code his Data Science assignment. You need to mantain the same coding style throughout the whole file (@workspace.py) and markdown file (@md_text_workspace.md).
 
-1.2. The instructions for the assignment are available in PDF and Markdown format (@MD_assignment_2_instructions.md).
+1.2. The instructions for the assignment are available in PDF and Markdown format ( @assignment2_instructions.md ).
 
 1.3. You will only take one SUB question at a time (e.g. question 1.a) ).
 

@@ -350,6 +350,91 @@ plt.tight_layout()
 plt.show()
 
 # ============================================================
+# Q2: \'Planting\' your decision tree
+# ============================================================
+
+from sklearn.tree import DecisionTreeClassifier, export_text
+
+# The dataset is small so we construct it directly
+q2_data = {
+    'ID': list(range(1, 26)),
+    'TrainingHours': [10, 9, 8, 11, 7, 6, 12, 5, 4, 8, 9, 3, 2, 6, 7, 10, 5, 4, 8, 9, 11, 3, 12, 7, 6],
+    'FitnessPass': [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0],
+    'AttendanceGood': [1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1],
+    'PriorClub': [1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1],
+    'TopTeam': [1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0]
+}
+q2_df = pd.DataFrame(q2_data)
+
+def calc_gini(counts):
+    total = sum(counts)
+    if total == 0: return 0
+    probs = [c / total for c in counts]
+    return 1 - sum(p**2 for p in probs)
+
+# --- Part 1: Gini at Root ---
+counts_root = q2_df['TopTeam'].value_counts()
+gini_root = calc_gini([counts_root.get(0, 0), counts_root.get(1, 0)])
+print(f"\n{'='*60}")
+print("Q2: DECISION TREE HANDMADE OUTPUTS")
+print(f"Gini at Root (n=25): {gini_root:.4f}")
+
+# --- Part 2: DecisionTreeClassifier max_depth=2 ---
+X_q2 = q2_df[['TrainingHours', 'FitnessPass', 'AttendanceGood', 'PriorClub']]
+y_q2 = q2_df['TopTeam']
+
+clf_depth_2 = DecisionTreeClassifier(criterion='gini', splitter='best', max_depth=2, random_state=42)
+clf_depth_2.fit(X_q2, y_q2)
+print(f"\nDecisionTreeClassifier (max_depth=2) Flowchart:\n{export_text(clf_depth_2, feature_names=list(X_q2.columns))}")
+
+# --- Part 3: First Split Forced (TrainingHours >= 8) ---
+cond = q2_df['TrainingHours'] >= 8
+left_c, right_c = q2_df[~cond], q2_df[cond]
+
+def gini_for_df(df_sub):
+    vc = df_sub['TopTeam'].value_counts()
+    return calc_gini([vc.get(0, 0), vc.get(1, 0)])
+
+gini_l = gini_for_df(left_c)
+gini_r = gini_for_df(right_c)
+w_gini = (len(left_c)/len(q2_df))*gini_l + (len(right_c)/len(q2_df))*gini_r
+
+print(f"First Split Forced (TrainingHours >= 8):")
+print(f"  Left child (< 8): n={len(left_c)}, Gini={gini_l:.4f}")
+print(f"  Right child (>= 8): n={len(right_c)}, Gini={gini_r:.4f}")
+print(f"  Weighted Gini: {w_gini:.4f}")
+print(f"  Impurity Reduction: {gini_root - w_gini:.4f}")
+
+# --- Part 4: Evaluating Second-Level Splits ---
+print(f"\nLeft Child (< 8) splits:")
+for var in ['FitnessPass', 'AttendanceGood', 'PriorClub']:
+    val_0, val_1 = left_c[left_c[var] == 0], left_c[left_c[var] == 1]
+    g_0, g_1 = gini_for_df(val_0), gini_for_df(val_1)
+    gw = (len(val_0)/len(left_c))*g_0 + (len(val_1)/len(left_c))*g_1
+    print(f"  Split on {var:15s}: Weighted Gini = {gw:.4f}")
+
+print(f"\nRight Child (>= 8) splits:")
+for var in ['FitnessPass', 'AttendanceGood', 'PriorClub']:
+    val_0, val_1 = right_c[right_c[var] == 0], right_c[right_c[var] == 1]
+    g_0, g_1 = gini_for_df(val_0), gini_for_df(val_1)
+    gw = (len(val_0)/len(right_c))*g_0 + (len(val_1)/len(right_c))*g_1
+    print(f"  Split on {var:15s}: Weighted Gini = {gw:.4f}")
+
+# --- Max Depth Tree ---
+clf_max = DecisionTreeClassifier(criterion='gini', splitter='best', max_depth=None, random_state=42)
+clf_max.fit(X_q2, y_q2)
+print(f"\nDecisionTreeClassifier (max_depth=None) Flowchart:\n{export_text(clf_max, feature_names=list(X_q2.columns))}")
+print(f"Max depth properties - Leaves: {clf_max.get_n_leaves()}, Depth: {clf_max.get_depth()}")
+
+students_pred = pd.DataFrame([
+    {'Student': 'A', 'TrainingHours': 9, 'FitnessPass': 0, 'AttendanceGood': 1, 'PriorClub': 1},
+    {'Student': 'B', 'TrainingHours': 6, 'FitnessPass': 1, 'AttendanceGood': 1, 'PriorClub': 0}
+])
+print("\nMax Depth Tree Predictions:")
+print(f"  Student A Predict: {clf_max.predict(students_pred[X_q2.columns].iloc[[0]])[0]}")
+print(f"  Student B Predict: {clf_max.predict(students_pred[X_q2.columns].iloc[[1]])[0]}")
+
+# ============================================================
 # Q3: PCA in Practice
 # ============================================================
 

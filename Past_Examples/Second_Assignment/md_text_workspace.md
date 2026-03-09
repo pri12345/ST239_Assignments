@@ -72,6 +72,103 @@ In this setting, **Recall** (sensitivity) deserves higher priority than overall 
 
 ---
 
+## Q2. \'Planting\' your decision tree
+
+### Introduction
+
+In this task, we construct a decision tree by hand to predict whether a student athlete should be selected for the top BUCS Rugby Team, using their historical data on training, fitness, attendance, and prior club experience.
+
+### Part 1: Gini Impurity at Root Node
+
+The formula for the Gini impurity is $1 - \sum (p_i)^2$. Using all 25 observations:
+- Class 0 (No Top Team): $n_0 = 13 \\implies p_0 = 0.52$
+- Class 1 (Top Team): $n_1 = 12 \\implies p_1 = 0.48$
+
+$$ \\text{Gini(Root)} = 1 - (0.52^2 + 0.48^2) = 1 - 0.5008 = 0.4992 $$
+
+### Part 2: Output of Code (max_depth=2)
+
+If we were to run `DecisionTreeClassifier(max_depth=2)`, the default optimal splits chosen by Python would differ from forcing the first split on 8 hours. Based on the exported tree rules, the engine selects `TrainingHours <= 7.50` as the best initial split. For the left child, it splits again at `TrainingHours <= 6.50`, and for the right child, at `FitnessPass <= 0.50`. This creates a flowchart where predicting the top team largely revolves around meeting the 7.50-hour threshold and passing the fitness test.
+
+### Part 3: First Split Forced on TrainingHours (\u2265 8)
+
+The coach requires \u2265 4 sessions of 2 hours, meaning \u2265 8 hours of training per week. We force our first split:
+- **Left Child $(< 8 \\text{ hours})$**: Contains 13 samples (12 Class 0, 1 Class 1). 
+  - $\\text{Gini}_{left} = 1 - ((12/13)^2 + (1/13)^2) \\approx 0.1420$
+- **Right Child $(\\ge 8 \\text{ hours})$**: Contains 12 samples (1 Class 0, 11 Class 1).
+  - $\\text{Gini}_{right} = 1 - ((1/12)^2 + (11/12)^2) \\approx 0.1528$
+
+**Weighted Gini**: $(13/25 \\times 0.1420) + (12/25 \\times 0.1528) \\approx 0.1472$
+**Impurity reduction**: $0.4992 - 0.1472 = 0.3520$
+
+### Part 4: Second-Level Split Evaluation
+
+Evaluating the remaining variables (`FitnessPass`, `AttendanceGood`, `PriorClub`) for the left and right child nodes:
+- **Left Child $(< 8, n=13)$**: Splitting by `PriorClub` gives the lowest weighted Gini (0.1231).
+- **Right Child $(\\ge 8, n=12)$**: Splitting by `FitnessPass` gives the lowest weighted Gini (0.0833).
+
+**Justification**: We choose `PriorClub` for the Left Child and `FitnessPass` for the Right Child because they yield the purest leaves and the maximum reduction in Gini Impurity.
+
+### Part 5: Flow Diagram (Hand-made Tree)
+
+```text
+[Root Node]
+|-- Impurity index: 0.4992  |  Samples: 25
+|-- Split 1: TrainingHours >= 8?
+|
+|-- [Left Child: No (< 8)]
+|   |-- Impurity index: 0.1420  |  Samples: 13
+|   |-- Split 2: PriorClub == 1?
+|   |
+|   |-- [Left Leaf: No] -> Impurity: 0.0 | Prediction: Class 0
+|   |-- [Right Leaf: Yes] -> Impurity: 0.2449 | Prediction: Class 0
+|
+|-- [Right Child: Yes (>= 8)]
+    |-- Impurity index: 0.1528  |  Samples: 12
+    |-- Split 2: FitnessPass == 1?
+    |
+    |-- [Left Leaf: No] -> Impurity: 0.0 | Prediction: Class 0
+    |-- [Right Leaf: Yes] -> Impurity: 0.0 | Prediction: Class 1
+```
+
+### Question 1: Daily Average Transformation
+
+If `TrainingHours` was divided by 7 to provide a daily average, the decision tree would **not change at all**. A decision tree splits data based on ordering and relative thresholds. Since division by a constant strictly preserves the ordering of the instances (it is a monotonic linear transformation), the algorithm would pick the exact same relative cut points, leading to identical impurity reductions, identical tree structures, and identical predictions.
+
+### Question 2: Student Predictions (Shallow Tree)
+
+- **Student A** (`TrainingHours=9, FitnessPass=0`): Routes to Right Child (\u2265 8), then to Left Leaf (`FitnessPass` < 0.5). **Prediction: 0 (Do not select)**.
+- **Student B** (`TrainingHours=6, PriorClub=0`): Routes to Left Child (< 8), then to Left Leaf (`PriorClub` < 0.5). **Prediction: 0 (Do not select)**.
+
+### Max Depth Tree Construction
+
+Modifying the tree to `max_depth=None` to use all variables yields a deep programmatic tree with the following properties:
+- **Maximum Depth**: 3 levels
+- **Number of Leaves**: 6 leaves
+- **Combined Purity**: Gini = 0.0 across all leaves (100% pure).
+
+**Flowchart:**
+```text
+[Root] -> Split: TrainingHours <= 7.50
+   |-- [<= 7.50, n=13] -> Split: TrainingHours <= 6.50
+   |      |-- [<= 6.50, n=6]  -> Class 0
+   |      |-- [> 6.50, n=7]   -> Split: PriorClub <= 0.50 -> (<=: Class 0, >: Class 1)
+   |
+   |-- [> 7.50, n=12] -> Split: FitnessPass <= 0.50
+          |-- [<= 0.50, n=2]  -> Split: AttendanceGood <= 0.50 -> (<=: Class 0, >: Class 1)
+          |-- [> 0.50, n=10]  -> Class 1
+```
+
+**Predictions vs Hand-made Tree:**
+Running the students through the new deep tree:
+- **Student A** (`Train=9, Fit=0, Att=1`): Routes: `> 7.50` -> `Fitness <= 0.50` -> `Attendance > 0.50`. **Prediction: 1 (Select)**.
+- **Student B** (`Train=6`): Routes: `<= 7.50` -> `<= 6.50`. **Prediction: 0 (Do not select)**.
+
+**Model Comparison:**
+The shallow tree provided an intuitive "rule of thumb" but failed to classify Student A properly because it grouped all un-fit students without checking attendance. The deep tree correctly mapped Student A's mitigating factor (Good Attendance) to class them into the top team. However, a coach might strongly prefer the shallow tree because it is highly interpretable, easy to remember on the field, and explicitly prevents overfitting. Deep trees risk memorising noisy combinations the 25-sample dataset that will not generalise to next year's crop of students.
+
+---
+
 ## Q3. PCA in Practice
 
 ### Introduction
@@ -120,31 +217,73 @@ Mean-centering is performed automatically by `StandardScaler` and is also a form
 
 ### Principal Components: Eigenvalues and Loadings
 
-*[Insert eigenvalue table here after running.]*
+The PCA was run on the 9 standardised variables. The eigenvalue table below summarises how much variance each component explains:
 
-#### Naming the Principal Components
+| PC | Eigenvalue | Variance | Cumulative |
+|---|---|---|---|
+| 1 | 1.898 | 21.1% | 21.1% |
+| 2 | 1.601 | 17.8% | 38.9% |
+| 3 | 1.042 | 11.6% | 50.4% |
+| 4 | 0.858 | 9.5% | 59.9% |
+| 5 | 0.807 | 9.0% | 68.9% |
+| 6 | 0.755 | 8.4% | 77.3% |
+| 7 | 0.715 | 7.9% | 85.2% |
+| 8 | 0.682 | 7.6% | 92.8% |
+| 9 | 0.648 | 7.2% | 100.0% |
 
-The table below shows the correlation loadings (i.e. the correlation between each standardised variable and each PC):
+The eigenvalues decrease gradually with no sharp elbow, meaning variance is spread fairly evenly across all components — no single dominant latent factor drives the data.
+
+#### Reading the Loadings
+
+The correlation loadings are computed as:
+
+$$\text{cor}(x_i, \text{PC}_j) = v_{ji} \times \sqrt{\lambda_j}$$
+
+where $v_{ji}$ is the $j$-th eigenvector component (from pca.components_) and $\lambda_j$ is the $j$-th eigenvalue. Because the inputs are standardised, these values are Pearson correlations bounded in $[-1, 1]$.
+
+The full correlation loadings matrix for the first three PCs:
 
 | Variable | PC1 | PC2 | PC3 |
 |---|---|---|---|
-| age | 0.031 | 0.003 | **0.915** |
-| annual_income_gbp | 0.073 | **0.601** | 0.313 |
-| standing_hours_per_day | **0.697** | −0.020 | −0.019 |
-| lifting_hours_per_day | **0.703** | −0.100 | −0.054 |
-| manual_intensity_score | **0.713** | −0.063 | 0.049 |
-| repetitive_motion_score | **0.622** | −0.054 | −0.039 |
-| seated_hours_per_day | 0.065 | **0.583** | −0.261 |
-| computer_hours_per_day | 0.024 | **0.704** | −0.149 |
-| meetings_hours_per_week | 0.103 | **0.622** | 0.100 |
+| age | 0.031 | 0.003 | 0.915 |
+| annual_income_gbp | 0.073 | 0.601 | 0.313 |
+| standing_hours_per_day | 0.697 | -0.020 | -0.019 |
+| lifting_hours_per_day | 0.703 | -0.100 | -0.054 |
+| manual_intensity_score | 0.713 | -0.063 | 0.049 |
+| repetitive_motion_score | 0.622 | -0.054 | -0.039 |
+| seated_hours_per_day | 0.065 | 0.583 | -0.261 |
+| computer_hours_per_day | 0.024 | 0.704 | -0.149 |
+| meetings_hours_per_week | 0.103 | 0.622 | 0.100 |
 
-- **PC1 — "Physical Labour Intensity"**: dominated by `manual_intensity_score` (0.71), `lifting_hours_per_day` (0.70), `standing_hours_per_day` (0.70), and `repetitive_motion_score` (0.62). All four physical-work variables load highly and positively; desk-work variables have near-zero loadings. This component distinguishes workers doing demanding physical jobs from those who do not.
+A loading above 0.55 in absolute value is used as the cut-off for a dominant contribution, since at that level the variable shares over 30% of its variance with the PC. Dominant variables per component:
 
-- **PC2 — "Office / Desk Work"**: driven by `computer_hours_per_day` (0.70), `meetings_hours_per_week` (0.62), `annual_income_gbp` (0.60), and `seated_hours_per_day` (0.58). PC2 captures the intensity of desk-based, collaborative, and well-paid work. It is orthogonal to PC1, reflecting that physical and office work are largely independent dimensions across workers.
+| PC | Dominant variables (|cor| > 0.55) | Direction |
+|---|---|---|
+| PC1 | manual_intensity_score (0.71), lifting_hours_per_day (0.70), standing_hours_per_day (0.70), repetitive_motion_score (0.62) | All positive |
+| PC2 | computer_hours_per_day (0.70), meetings_hours_per_week (0.62), annual_income_gbp (0.60), seated_hours_per_day (0.58) | All positive |
+| PC3 | age (0.92) | Positive |
 
-- **PC3 — "Seniority / Age"**: almost entirely explained by `age` (0.92), with a secondary contribution from `annual_income_gbp` (0.31). This component captures the career-stage and earnings dimension, largely independent of job type.
+#### Naming the Principal Components
 
-The **correlation circle plots** confirm these groupings visually: arrows for the four physical variables cluster together in the PC1 direction, the desk-work arrows cluster in the PC2 direction, and `age` points strongly along PC3. Variables pointing roughly at right angles are uncorrelated with respect to those two PCs.
+PC1 — "Physical Labour Intensity"
+
+The four dominant variables all measure the physical demands of a job: standing upright, carrying loads, exerting muscular effort, and repetitive movement. They load strongly and positively, while every desk-work variable (seated_hours_per_day, computer_hours_per_day, meetings_hours_per_week, annual_income_gbp) has a near-zero loading on PC1 (all below 0.11). Workers who do more of one of these activities tend to do more of the others, forming a coherent physical-work cluster.
+
+PC2 — "Office / Desk Work Intensity"
+
+The four dominant variables (computer_hours_per_day, meetings_hours_per_week, annual_income_gbp, seated_hours_per_day) describe sedentary, technology-mediated, and better-paid work. All four physical-work variables that drove PC1 load near-zero on PC2 (range: -0.10 to -0.02), which makes sense since you can't simultaneously lift heavy loads and sit at a computer for hours in the same workday. The inclusion of annual_income_gbp (0.60) reflects that office-based roles tend to pay more, so income correlates more with desk-work intensity than with age alone.
+
+PC3 — "Seniority / Age"
+
+A single variable dominates: age (0.92), the largest individual loading across all three PCs. Annual_income_gbp contributes modestly (0.31), reflecting the income premium that typically builds up over a career. All work-activity variables load near-zero on PC3 (range: -0.26 to 0.10). The fact that annual_income_gbp loads on both PC2 (0.60) and PC3 (0.31) makes sense — income relates to both job type and career stage, so its variance gets split across two components. PC3 captures career stage independently of whether someone is in a physical or desk-based role.
+
+#### Confirmation from the Correlation Circle Plots
+
+- PC1 vs PC2: The four physical-work arrows cluster in the positive-PC1 / near-zero-PC2 region; the four office-work arrows cluster in the near-zero-PC1 / positive-PC2 region. The two groups sit roughly at 90° to each other. Age lies near the origin, confirming it contributes almost nothing to either PC1 or PC2.
+
+- PC1 vs PC3: Age projects strongly along PC3 (vertical axis), while the physical-work arrows remain along PC1 (horizontal). The near-right angle between age and the physical variables confirms PC3 is independent of physical job demands.
+
+- PC2 vs PC3: Age points along PC3; the office-work arrows point along PC2. Annual_income_gbp's arrow sits between the two axes, reflecting its split role across desk-work and seniority. Physical-work arrows are near the origin, confirming they contribute minimally to either PC2 or PC3.
 
 ---
 

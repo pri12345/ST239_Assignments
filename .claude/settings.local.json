@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(python3:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(py:*)",
+      "Bash(pip show:*)",
+      "Bash(pip list:*)",
+      "Bash(\"C:/Users/prida/Desktop/ST239_Assignments/.venv/Scripts/python.exe\":*)"
     ]
   }
 }
